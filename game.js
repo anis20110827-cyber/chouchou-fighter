@@ -22,6 +22,18 @@
   const STAGES = []; // {id,name,img}
 
   const SPRITE_NAMES = ['idle1','idle2','walk1','run1','punch','kick','hurt','down','jump','block','special','win'];
+  const STAGE_DEFS = [
+    { id: 'maqam',  name: 'المقام الشهيد — الجزائر' },
+    { id: 'casbah', name: 'القصبة — الجزائر' },
+    { id: 'djamaa', name: 'جامع الجزائر الكبير' },
+    { id: 'opera',  name: 'دار الأوبرا — بالليل' }
+  ];
+
+  // Assemble the ASSETS object from the per-file chunks loaded before this script.
+  const PARTS = (typeof window !== 'undefined' && window.ASSET_PARTS) ? window.ASSET_PARTS : {};
+  const SPRITE_SRC = {};
+  for (const n of SPRITE_NAMES) SPRITE_SRC[n] = PARTS[n] || '';
+  const STAGE_SRC = STAGE_DEFS.map(s => ({ id: s.id, name: s.name, src: PARTS['stage-' + s.id] || '' }));
 
   function loadImage(src) {
     return new Promise((res, rej) => {
@@ -35,10 +47,11 @@
   async function loadAll() {
     const tasks = [];
     for (const n of SPRITE_NAMES) {
-      tasks.push(loadImage(ASSETS.sprites[n]).then(im => { SPR[n] = im; }));
+      if (!SPRITE_SRC[n]) continue;
+      tasks.push(loadImage(SPRITE_SRC[n]).then(im => { SPR[n] = im; }));
     }
     // keep the declared stage order (not load-completion order)
-    const results = await Promise.all(ASSETS.stages.map(s => loadImage(s.src).then(im => ({ s, im }))));
+    const results = await Promise.all(STAGE_SRC.map(s => loadImage(s.src).then(im => ({ s, im }))));
     for (const r of results) STAGES.push({ id: r.s.id, name: r.s.name, img: r.im });
     await Promise.all(tasks);
   }
