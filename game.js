@@ -160,7 +160,7 @@
       this.scale = 1;
       this.jumps = 1; this.land = 0; this.rage = false; this.ghostT = 0;
       this.chain = 0; this.chainT = 0; this.inv = 0; this.dodgeCd = 0; this.blockT = 0; this.blockCd = 0;
-      this.cfg = null; this.speed = 1;
+      this.cfg = null; this.speed = 1; this.fatal = 0;
     }
 
     get w() { return 32 * this.scale; }
@@ -295,7 +295,7 @@
     roundEnded: false,
     startTime: 0,
     hitStop: 0,
-    aiTimer: 0, aiPlan: 'approach',
+    aiTimer: 0, aiPlan: 'approach', finish: null,
     particles: [], ghosts: [], rings: [], balls: [], shadows: [], koDark: 0,
     comboPopup: null,
     comboPopupTimer: 0,
@@ -466,7 +466,7 @@
       this.p1.energy = 100; this.p2.energy = 100;
       this.p1.win = false; this.p2.win = false;
       this.roundEnded = false;
-      this.koSlowmo = 0; this.koDark = 0; this.balls.length = 0; this.shadows.length = 0; this.ghosts.length = 0;
+      this.finish = null; this.p2.fatal = 0; this.koSlowmo = 0; this.koDark = 0; this.balls.length = 0; this.shadows.length = 0; this.ghosts.length = 0;
       this.p1.rage = false; this.p2.rage = false; this.p1.jumps = this.p2.jumps = 1;
       const OPP = [
         { name: 'الجناح السريع', hp: 90, speed: 1.35, aggr: 0.8, block: 0.1, dodge: 0.35, filter: 'sepia(0.55) saturate(1.5) brightness(1.05)' },
@@ -484,12 +484,55 @@
       updateHud();
     },
 
+    announce(n) {
+      this.banner('ROUND ' + n, '', 1.0);
+      setTimeout(() => { if (this.state === 'fight') this.banner('FIGHT!', 'red', 0.8); }, 1000);
+    },
+
+    startFinish() {
+      this.finish = { t: 4, done: false, ft: 0, launched: false, fat: false };
+      this.koDark = 0;
+      this.p2.setState('hurt', 99999);
+      this.banner('FINISH HIM!', 'red', 4);
+      audio.crowd();
+    },
+
+    doFatality() {
+      const F = this.finish; F.done = true; F.ft = 0;
+      const a = this.p1, v = this.p2;
+      a.x = Math.max(60, Math.min(STAGE_W - 60, v.x - a.facing * 62)); a.vx = 0;
+      a.setState('special', 34);
+      this.koDark = 3.4;
+    },
+
+    stepFinish(d) {
+      const F = this.finish; if (!F) return;
+      const a = this.p1, v = this.p2;
+      if (!F.done) {
+        F.t -= d;
+        if (hit('special') || hit('ball') || hit('kick')) { this.doFatality(); return; }
+        if (F.t <= 0) { this.finish = null; this.matchOver(); }
+        return;
+      }
+      F.ft += d;
+      if (F.ft >= 0.3 && !F.launched) {
+        F.launched = true;
+        v.setState('hurt', 99999); v.vy = -14; v.vx = a.facing * 1.4; v.hitFlash = 0.8; v.grounded = false;
+        this.shake = 22; this.hitStop = 0.2; audio.special(); audio.ko();
+        this.sparks({ x: v.x, y: v.y - 40 }, '#ffffff', 28); this.ring(v.x, v.y - 40, 'rgba(255,255,255,.95)', 110);
+      }
+      if (F.launched && F.ft < 1.7) v.fatal += 0.32 * d * 60;
+      if (F.ft >= 1.0 && !F.fat) { F.fat = true; this.banner('FATALITY', 'red', 2.2); }
+      if (F.ft >= 1.7 && v.fatal) { v.fatal = 0; v.setState('down', 99999); }
+      if (F.ft >= 3.4) { this.finish = null; v.fatal = 0; this.matchOver(); }
+    },
+
     startFight() {
       this.round = 1; this.p1wins = 0; this.p2wins = 0; this.matchSeconds = 0;
       this.resetRound(false);
       this.state = 'fight';
       hideScreens();
-      this.banner('جولة ' + this.round, '', 1.1);
+      this.announce(this.round);
       audio.round();
     },
 
@@ -501,6 +544,7 @@
     banner(txt, cls = '', dur = 1.0) {
       const el = document.getElementById('announceTxt');
       el.textContent = txt;
+      el.style.direction = /^[\x00-\x7f]*$/.test(txt) ? 'ltr' : 'rtl';
       el.className = 'txt show ' + cls;
       this.bannerTimer = dur;
     },
@@ -513,13 +557,14 @@
       audio.ko();
       this.koSlowmo = 1.1; this.koDark = 1.7; this.balls.length = 0; this.shadows.length = 0;
       this.shake = 14;
-      const msg = reason === 'time' ? 'الوقت خلص!' : 'K.O.';
-      this.banner(msg, 'red', 1.6);
+      const flawless = winnerIsP1 && reason === 'ko' && this.p1.hp >= this.p1.maxHp;
+      this.banner(flawless ? 'FLAWLESS VICTORY' : (reason === 'time' ? 'الوقت خلص!' : 'K.O.'), flawless ? 'win' : 'red', 1.8);
       setTimeout(() => {
-        if (this.p1wins >= ROUNDS_TO_WIN || this.p2wins >= ROUNDS_TO_WIN) this.matchOver();
+        if (this.p1wins >= ROUNDS_TO_WIN && reason === 'ko') this.startFinish();
+        else if (this.p1wins >= ROUNDS_TO_WIN || this.p2wins >= ROUNDS_TO_WIN) this.matchOver();
         else {
           this.round++;
-          this.banner('جولة ' + this.round, '', 1.0);
+          this.announce(this.round);
           setTimeout(() => this.resetRound(false), 900);
           audio.round();
         }
@@ -568,6 +613,7 @@
       this.p2.update(d);
       this.resolve(this.p1, this.p2, d);
       this.resolve(this.p2, this.p1, d);
+      if (this.finish) this.stepFinish(d);
       this.stepBalls(d);
       this.stepShadows(d);
       this.updateParticles(d);
@@ -884,7 +930,7 @@
         if (f.rage && Math.random() < 0.4) game.particles.push({ x: f.x + (Math.random() - .5) * 30, y: f.y - 10, vx: 0, vy: -2.4, life: 0.5, max: 0.5, color: '#ff6b3d', size: 3 });
       }
       ctx.translate(sx, f.y + dy);
-      ctx.rotate(rot * f.facing);
+      ctx.rotate(rot * f.facing + f.fatal * f.facing);
       ctx.scale(sxs * f.scale, sys * f.scale);
       if (f.cfg && 'filter' in ctx) ctx.filter = f.cfg.filter;
       if (f.inv > 0) ctx.globalAlpha = 0.5;
