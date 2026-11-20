@@ -469,8 +469,8 @@
       this.koSlowmo = 0; this.koDark = 0; this.balls.length = 0; this.shadows.length = 0; this.ghosts.length = 0;
       this.p1.rage = false; this.p2.rage = false; this.p1.jumps = this.p2.jumps = 1;
       const OPP = [
-        { name: 'الجناح السريع', hp: 90, speed: 1.35, aggr: 0.8, block: 0.1, dodge: 0.35, filter: 'hue-rotate(200deg) saturate(1.3)' },
-        { name: 'المدافع الصلب', hp: 130, speed: 0.85, aggr: 0.7, block: 0.55, dodge: 0.1, filter: 'hue-rotate(60deg) saturate(1.2)' },
+        { name: 'الجناح السريع', hp: 90, speed: 1.35, aggr: 0.8, block: 0.1, dodge: 0.35, filter: 'sepia(0.55) saturate(1.5) brightness(1.05)' },
+        { name: 'المدافع الصلب', hp: 130, speed: 0.85, aggr: 0.7, block: 0.55, dodge: 0.1, filter: 'grayscale(0.6) contrast(1.15) brightness(0.8)' },
         { name: 'شوشع الذهبي — الزعيم', hp: 160, speed: 1.15, aggr: 1.0, block: 0.3, dodge: 0.3, boss: true, scale: 1.12, filter: 'sepia(1) saturate(3.2) hue-rotate(-12deg) brightness(1.1)' }
       ];
       const cfg = (!fullRestart && this.p1wins >= 1) ? OPP[2] : OPP[fullRestart ? 0 : (this.round - 1) % 2];
@@ -824,16 +824,16 @@
       ctx.restore();
 
       // energy bars (special / fireball meter)
-      for (const [f, x0] of [[this.p1, 520], [this.p2, 20]]) {
-        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x0, 82, 100, 6);
+      for (const [f, x0] of [[this.p1, 8], [this.p2, 532]]) {
+        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x0, 40, 100, 5);
         ctx.fillStyle = f.energy >= 40 ? '#ffd24a' : (f.energy >= 25 ? '#ff9a3d' : '#7a7a7a');
-        ctx.fillRect(x0, 82, f.energy, 6);
+        ctx.fillRect(x0, 40, f.energy, 5);
       }
 
       // combo counter (Mortal Kombat style)
       if (this.p1.combo >= 2) {
         ctx.save();
-        ctx.textAlign = 'center';
+        ctx.textAlign = 'center'; ctx.direction = 'ltr';
         ctx.font = 'bold 22px Tahoma, Arial';
         ctx.fillStyle = '#f2c230';
         ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
@@ -844,7 +844,7 @@
       }
       if (this.p2.combo >= 2) {
         ctx.save();
-        ctx.textAlign = 'center';
+        ctx.textAlign = 'center'; ctx.direction = 'ltr';
         ctx.font = 'bold 22px Tahoma, Arial';
         ctx.fillStyle = '#ff6b6b';
         ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
