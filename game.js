@@ -21,7 +21,7 @@
   const SPR = {};   // name -> Image
   const STAGES = []; // {id,name,img}
 
-  const SPRITE_NAMES = [];   // characters are drawn in code (characters.js)
+  const SPRITE_NAMES = ['idle1','idle2','walk1','run1','punch','kick','hurt','down','jump','block','special','win'];   // only used by the sprite character (شوشع)
   const STAGE_DEFS = [
     { id: 'maqam',  name: 'المقام الشهيد — الجزائر' },
     { id: 'casbah', name: 'القصبة — الجزائر' },
@@ -219,7 +219,7 @@
         this.ghostT -= fr;
         if (this.ghostT <= 0) {
           this.ghostT = 3;
-          if (this.pose) game.ghosts.push({ ch: this.ch, pose: clonePose(this.pose), x: this.x, y: this.y, facing: this.facing, life: 0.28, max: 0.28, rage: this.rage });
+          if (this.pose) game.ghosts.push({ ch: this.ch, img: this.ch.sprite ? spriteFor(this) : null, pose: clonePose(this.pose), x: this.x, y: this.y, facing: this.facing, life: 0.28, max: 0.28, rage: this.rage });
           if (game.ghosts.length > 16) game.ghosts.shift();
         }
       }
@@ -312,7 +312,7 @@
     },
 
     spawnShadow(att, def) {
-      this.shadows.push({ owner: att, def, x: def.x, y: def.y - 190, t: 0, dived: false, ch: att.ch, pose: att.pose ? clonePose(att.pose) : null });
+      this.shadows.push({ owner: att, def, x: def.x, y: def.y - 190, t: 0, dived: false, ch: att.ch, img: att.ch.sprite ? SPR.jump : null, pose: att.pose ? clonePose(att.pose) : null });
       this.ring(def.x, def.y - 190, 'rgba(163,92,255,.9)', 50);
     },
 
@@ -343,7 +343,7 @@
 
     drawShadows() {
       for (const sh of this.shadows) {
-        if (!sh.pose) continue;
+        if (!sh.pose && !sh.img) continue;
         const a = sh.t < 0.15 ? sh.t / 0.15 : 1;
         ctx.save(); ctx.globalAlpha = 0.9 * a;
         const x = sh.x - this.camera;
@@ -353,7 +353,8 @@
         if ('filter' in ctx) ctx.filter = 'drop-shadow(0 0 6px #a35cff)';
         ctx.translate(x, sh.y + 40); ctx.scale(sh.owner.facing, 1);
         if (sh.t >= 0.55) ctx.rotate(0.5);
-        drawPuppet(ctx, sh.ch, sh.pose, 'special', { flat: '#0b0614' });
+        if (sh.img) { const k = 1 / 2.15; ctx.filter = 'brightness(0.1) drop-shadow(0 0 6px #a35cff)'; ctx.drawImage(sh.img, -sh.img.width * k / 2, -sh.img.height * k * 0.8, sh.img.width * k, sh.img.height * k); }
+        else drawPuppet(ctx, sh.ch, sh.pose, 'special', { flat: '#0b0614' });
         ctx.restore();
         if (sh.t >= 0.3 && sh.t < 0.55 && !sh.dived) {   // warning line showing where it will land
           ctx.save(); ctx.strokeStyle = 'rgba(192,139,255,.8)'; ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
@@ -377,7 +378,10 @@
 
     useSpecial(f) {
       f.energy = 0;
-      f.setState('sp', { det: 40, ninja: 30, bot: 46, bear: 52 }[f.ch.key] || 36);
+      if (f.ch.key === 'chouchou') {            // classic flying kick
+        f.setState('special', 34); f.vy = -5.4; f.vx = f.facing * 3.4; audio.special(); this.shake = 8; return;
+      }
+      f.setState('sp', { det: 40, ninja: 30, bot: 46, bear: 52, tuareg: 34 }[f.ch.key] || 36);
       audio.special(); this.shake = 6;
       this.ring(f.x, f.y - 40, 'rgba(255,255,255,.9)', 60);
     },
@@ -407,6 +411,12 @@
           const db = opp.hurtBox(), by = f.y - 52;
           if ((opp.x - f.x) * f.facing > 0 && db.y < by + 8 && db.y + db.h > by - 8) this.dealSpecial(f, opp, 16, f.facing, 4);
         }
+      } else if (k === 'tuareg') {           // desert rush: dash through the enemy
+        if (an >= 6 && an < 16) {
+          f.vx = f.facing * 11;
+          if (!f.sp1 && Math.abs(opp.x - f.x) < 46 && Math.abs(opp.y - f.y) < 60) { f.sp1 = true; this.dealSpecial(f, opp, 17, f.facing, 5); this.sparks({ x: f.x, y: f.y - 50 }, '#e8c35a', 18); }
+          if (an % 2 < 1) this.particles.push({ x: f.x - f.facing * 10, y: GROUND - 4, vx: -f.facing * 1.2, vy: -1, life: 0.4, max: 0.4, color: '#d9b878', size: 5 });
+        } else if (an >= 16) f.vx *= 0.6;
       } else if (k === 'bear') {
         if (!f.sp0) { f.sp0 = true; f.vy = -11; f.vx = f.facing * 2.2; }
         if (an > 10 && f.y >= GROUND && !f.sp1) {
@@ -913,7 +923,9 @@
       for (const g of this.ghosts) {
         ctx.save(); ctx.globalAlpha = 0.38 * (g.life / g.max);
         ctx.translate(g.x - this.camera, g.y); if (g.facing < 0) ctx.scale(-1, 1);
-        drawPuppet(ctx, g.ch, g.pose, 'dash', { flat: g.rage ? '#ff7a6a' : '#8fe8b0' }); ctx.restore();
+        if (g.img) { const k = 1 / 2.15; ctx.drawImage(g.img, -g.img.width * k / 2, -g.img.height * k, g.img.width * k, g.img.height * k); }
+        else drawPuppet(ctx, g.ch, g.pose, 'dash', { flat: g.rage ? '#ff7a6a' : '#8fe8b0' });
+        ctx.restore();
       }
       // fighters
       this.drawFighter(this.p2);
@@ -996,10 +1008,17 @@
         const gl = ctx.createRadialGradient(40, -62, 2, 40, -62, 34); gl.addColorStop(0, 'rgba(120,230,255,.9)'); gl.addColorStop(1, 'rgba(70,217,255,0)');
         ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(40, -62, 14 + f.anim, 0, 6.283); ctx.fill();
       }
+      if (f.ch.sprite) {
+        const im = spriteFor(f), k = 1 / 2.15;
+        if (f.cfg && f.cfg.boss && 'filter' in ctx) ctx.filter = 'sepia(1) saturate(3) brightness(1.1)';
+        if (im) ctx.drawImage(im, -im.width * k / 2, -im.height * k, im.width * k, im.height * k);
+        ctx.filter = 'none';
+      } else {
       const px = pixelRender(f.ch, f.pose, f.state, { boss: !!(f.cfg && f.cfg.boss), flat: f.hitFlash > 0.14 ? '#ffffff' : null });
       const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
       ctx.drawImage(px, -45 / PXS, -72 / PXS, PXN / PXS, PXN / PXS);
       ctx.imageSmoothingEnabled = sm;
+      }
       ctx.restore();
 
       // shadow
@@ -1016,6 +1035,16 @@
   function floatMiss(x, y) { game.sparks({ x, y }, '#ffffff', 6); }
 
   // characters are rendered at low resolution, alpha/colour quantised, then scaled up -> real pixel-art look
+  function spriteFor(f) {
+    switch (f.state) {
+      case 'walk': return SPR.walk1;   case 'run': case 'dodge': return SPR.run1;
+      case 'jump': return SPR.jump;    case 'punch': case 'cast': return SPR.punch;
+      case 'kick': return SPR.kick;    case 'special': case 'sp': return SPR.special;
+      case 'hurt': return SPR.hurt;    case 'down': return SPR.down;
+      case 'block': return SPR.block;  case 'win': return SPR.win;
+      default: return (Math.floor(f.anim / 14) % 2 === 0) ? SPR.idle1 : SPR.idle2;
+    }
+  }
   const PXS = 0.4, PXN = 90;
   const PXC = document.createElement('canvas'); PXC.width = PXN; PXC.height = PXN;
   const pg = PXC.getContext('2d', { willReadFrequently: true });
@@ -1086,8 +1115,9 @@
       card.className = 'stage-card char-card' + (i === game.charIndex ? ' sel' : '');
       const cv = document.createElement('canvas'); cv.width = PXN; cv.height = PXN;
       const fake = { state: 'idle', anim: 0, vx: 0, vy: 0, y: 300, chain: 0, ch: c };
-      cv.getContext('2d').drawImage(pixelRender(c, puppetTarget_(fake), 'idle', {}), 0, 0);
-      const nm = document.createElement('div'); nm.className = 'sname'; nm.textContent = c.name + ' — ' + c.note;
+      if (c.sprite) { const im = SPR.idle1, k = 74 / im.height; cv.getContext('2d').drawImage(im, 45 - im.width * k / 2, 78 - im.height * k, im.width * k, im.height * k); }
+      else cv.getContext('2d').drawImage(pixelRender(c, puppetTarget_(fake), 'idle', {}), 0, 0);
+      const nm = document.createElement('div'); nm.className = 'sname'; nm.textContent = c.name; nm.style.fontSize = '12px';
       card.appendChild(cv); card.appendChild(nm);
       card.onclick = () => { game.charIndex = i; [...el.children].forEach(x => x.classList.remove('sel')); card.classList.add('sel'); };
       el.appendChild(card);

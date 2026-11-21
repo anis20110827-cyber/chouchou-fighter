@@ -4,9 +4,11 @@
   'use strict';
 
   window.CHARS = [
+    { key: 'chouchou', name: 'شوشع', note: 'لاعب جزائري', sprite: true, skin: '#c98f5a', outfit: '#0f8b3f', accent: '#ffffff', dark: '#0a5a28', head: 'det', w: 15 },
     { key: 'det',   name: 'المحقق',  note: 'هادئ وذكي', skin: '#f0c9a0', outfit: '#2c3a52', accent: '#d9a441', dark: '#171d2b', head: 'hat',   w: 15 },
     { key: 'ninja', name: 'الظل',    note: 'سريع وصامت', skin: '#f0c9a0', outfit: '#1d2230', accent: '#e0463a', dark: '#0d1018', head: 'ninja', w: 13 },
     { key: 'bot',   name: 'روبو',    note: 'جسم معدني', skin: '#b8c8d8', outfit: '#8da4bb', accent: '#46d9ff', dark: '#2a3644', head: 'robot', w: 16 },
+    { key: 'tuareg', name: 'التارقي', note: 'فارس الصحراء', skin: '#c98f5a', outfit: '#2f4a9a', accent: '#e8c35a', dark: '#1a2760', head: 'ninja', w: 15 },
     { key: 'bear',  name: 'دبدوب',   note: 'قوي وطيب',   skin: '#b07a4c', outfit: '#b07a4c', accent: '#f0d2a8', dark: '#4a2f1b', head: 'bear',  w: 22 }
   ];
 
@@ -39,7 +41,7 @@
     else if (st === 'dodge') { lean = -18; crouch = 10; }
     else if (st === 'cast') lean = -4 + 6 * Math.sin(p * 3.14);
     else if (st === 'special') lean = 16;
-    else if (st === 'sp') lean = (f.ch && f.ch.key === 'bot') ? -4 : 6;
+    else if (st === 'sp') lean = (f.ch && f.ch.key === 'bot') ? -4 : (f.ch && f.ch.key === 'tuareg' ? 14 : 6);
 
     const hip = { x: twist, y: -40 + crouch };
     const sh = { x: lean, y: -68 + crouch * 1.1 };
@@ -70,6 +72,7 @@
       const k = f.ch && f.ch.key, a2 = an;
       fa = { x: 22, y: 0 }; fb = { x: -20, y: 0 };
       if (k === 'det') { const x = a2 < 8 ? 6 : (a2 < 20 ? 48 : 22); ha = { x: sh.x + x, y: sh.y + 4 }; hb = { x: sh.x + 8, y: sh.y + 10 }; }
+      else if (k === 'tuareg') { ha = { x: sh.x + (a2 < 16 ? 50 : 20), y: sh.y + 6 }; hb = { x: sh.x + 6, y: sh.y + 12 }; fa = { x: 30, y: 0 }; fb = { x: -28, y: 0 }; }
       else if (k === 'ninja') { const go = a2 >= 8; ha = { x: sh.x + (go ? 46 : 4), y: sh.y + (go ? -2 : -20) }; hb = { x: sh.x + (go ? 38 : 0), y: sh.y + (go ? 8 : -16) }; }
       else if (k === 'bot') { const go = a2 >= 14; ha = { x: sh.x + (go ? 52 : 20), y: sh.y + (go ? -16 : -4) }; hb = { x: sh.x + (go ? 46 : 16), y: sh.y + (go ? -10 : 2) }; fa = { x: 28, y: 0 }; fb = { x: -26, y: 0 }; }
       else { const up = a2 < 12 || air; ha = { x: sh.x + 8, y: sh.y + (up ? -42 : 30) }; hb = { x: sh.x - 8, y: sh.y + (up ? -42 : 30) }; fa = { x: 12, y: up ? -24 : 0 }; fb = { x: -10, y: up ? -22 : 0 }; }
@@ -155,6 +158,7 @@
     stroke(g, [L.hip, ik(L.hip, L.fb, 21, 1), L.fb], wLimb + 0.5, dark, OUT);
     // torso
     stroke(g, [L.hip, L.sh], ch.w, outfit, OUT);
+    if (ch.key === 'tuareg') { g.beginPath(); g.moveTo(L.hip.x - 9, L.hip.y - 4); g.lineTo(L.hip.x + 9, L.hip.y - 4); g.lineTo(L.hip.x + 15, L.hip.y + 24); g.lineTo(L.hip.x - 15, L.hip.y + 24); g.closePath(); g.fillStyle = outfit; g.fill(); g.strokeStyle = OUT; g.lineWidth = 2.4; g.stroke(); g.fillStyle = accent; g.fillRect(L.hip.x - 14, L.hip.y + 20, 28, 3.5); }
     if (ch.head === 'det' && !flat) { stroke(g, [{ x: L.hip.x + 3, y: L.hip.y - 2 }, { x: L.sh.x + 3, y: L.sh.y + 4 }], 5, '#8a6a3b', 'rgba(0,0,0,0)'); }
     if (ch.head === 'bear' && !flat) { stroke(g, [{ x: L.hip.x + 3, y: L.hip.y - 2 }, { x: L.sh.x + 3, y: L.sh.y + 8 }], 12, accent, 'rgba(0,0,0,0)'); }
     if (ch.head === 'robot' && !flat) { g.fillStyle = accent; g.fillRect(L.sh.x - 3 + 2, L.sh.y + 8, 7, 7); }
