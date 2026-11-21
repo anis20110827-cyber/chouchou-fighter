@@ -1,6 +1,6 @@
 /* ============================================================
-   شوشع فايتر — Mortal Kombat جزائري
-   شخصية وحدة: حسين شوشع (لاعب كرة قدم جزائري)
+   حلبة الأبطال — لعبة قتال
+   شخصيات كرتونية أصلية مرسومة بالكود
    ============================================================ */
 (function () {
   'use strict';
@@ -21,7 +21,7 @@
   const SPR = {};   // name -> Image
   const STAGES = []; // {id,name,img}
 
-  const SPRITE_NAMES = ['idle1','idle2','walk1','run1','punch','kick','hurt','down','jump','block','special','win'];
+  const SPRITE_NAMES = [];   // characters are drawn in code (characters.js)
   const STAGE_DEFS = [
     { id: 'maqam',  name: 'المقام الشهيد — الجزائر' },
     { id: 'casbah', name: 'القصبة — الجزائر' },
@@ -160,31 +160,13 @@
       this.scale = 1;
       this.jumps = 1; this.land = 0; this.rage = false; this.ghostT = 0;
       this.chain = 0; this.chainT = 0; this.inv = 0; this.dodgeCd = 0; this.blockT = 0; this.blockCd = 0;
-      this.cfg = null; this.speed = 1; this.fatal = 0;
+      this.cfg = null; this.speed = 1; this.fatal = 0; this.ch = CHARS[0]; this.pose = null;
     }
 
     get w() { return 32 * this.scale; }
     get h() { return 68 * this.scale; }
     get cx() { return this.x; }
     get cy() { return this.y - this.h / 2; }
-
-    sprite() {
-      switch (this.state) {
-        case 'walk':  return SPR.walk1;
-        case 'run':   return SPR.run1;
-        case 'jump':  return SPR.jump;
-        case 'punch': return SPR.punch;
-        case 'kick':  return SPR.kick;
-        case 'special': return SPR.special;
-        case 'cast':  return SPR.punch;
-        case 'dodge': return SPR.run1;
-        case 'hurt':  return SPR.hurt;
-        case 'down':  return SPR.down;
-        case 'block': return SPR.block;
-        case 'win':   return SPR.win;
-        default: return (Math.floor(this.anim / 14) % 2 === 0) ? SPR.idle1 : SPR.idle2;
-      }
-    }
 
     setState(s, dur) {
       this.state = s; this.timer = dur; this.anim = 0; this.hitDone = false;
@@ -233,10 +215,11 @@
         this.ghostT -= fr;
         if (this.ghostT <= 0) {
           this.ghostT = 3;
-          game.ghosts.push({ img: this.sprite(), x: this.x, y: this.y, facing: this.facing, life: 0.28, max: 0.28, rage: this.rage });
+          if (this.pose) game.ghosts.push({ ch: this.ch, pose: clonePose(this.pose), x: this.x, y: this.y, facing: this.facing, life: 0.28, max: 0.28, rage: this.rage });
           if (game.ghosts.length > 16) game.ghosts.shift();
         }
       }
+      puppetStep(this, dt);
       // rage mode: low health = stronger + aura
       if (!this.rage && this.hp > 0 && this.hp <= this.maxHp * 0.3) {
         this.rage = true;
@@ -295,7 +278,7 @@
     roundEnded: false,
     startTime: 0,
     hitStop: 0,
-    aiTimer: 0, aiPlan: 'approach', finish: null,
+    aiTimer: 0, aiPlan: 'approach', finish: null, charIndex: 0,
     particles: [], ghosts: [], rings: [], balls: [], shadows: [], koDark: 0,
     comboPopup: null,
     comboPopupTimer: 0,
@@ -325,7 +308,7 @@
     },
 
     spawnShadow(att, def) {
-      this.shadows.push({ owner: att, def, x: def.x, y: def.y - 190, t: 0, dived: false, img: SPR.jump });
+      this.shadows.push({ owner: att, def, x: def.x, y: def.y - 190, t: 0, dived: false, ch: att.ch, pose: att.pose ? clonePose(att.pose) : null });
       this.ring(def.x, def.y - 190, 'rgba(163,92,255,.9)', 50);
     },
 
@@ -356,18 +339,17 @@
 
     drawShadows() {
       for (const sh of this.shadows) {
-        const im = sh.img; if (!im) continue;
-        const sc = 1 / 2.15, w = im.width * sc, h = im.height * sc;
+        if (!sh.pose) continue;
         const a = sh.t < 0.15 ? sh.t / 0.15 : 1;
         ctx.save(); ctx.globalAlpha = 0.9 * a;
         const x = sh.x - this.camera;
         const g = ctx.createRadialGradient(x, sh.y - 30, 4, x, sh.y - 30, 60);
         g.addColorStop(0, 'rgba(163,92,255,.55)'); g.addColorStop(1, 'rgba(163,92,255,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, sh.y - 30, 60, 0, 6.283); ctx.fill();
-        if ('filter' in ctx) ctx.filter = 'brightness(0.12) drop-shadow(0 0 6px #a35cff)';
-        ctx.translate(x, sh.y); ctx.scale(sh.owner.facing, 1);
+        if ('filter' in ctx) ctx.filter = 'drop-shadow(0 0 6px #a35cff)';
+        ctx.translate(x, sh.y + 40); ctx.scale(sh.owner.facing, 1);
         if (sh.t >= 0.55) ctx.rotate(0.5);
-        ctx.drawImage(im, -w / 2, -h * 0.75, w, h);
+        drawPuppet(ctx, sh.ch, sh.pose, 'special', { flat: '#0b0614' });
         ctx.restore();
         if (sh.t >= 0.3 && sh.t < 0.55 && !sh.dived) {   // warning line showing where it will land
           ctx.save(); ctx.strokeStyle = 'rgba(192,139,255,.8)'; ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
@@ -469,13 +451,17 @@
       this.finish = null; this.p2.fatal = 0; this.koSlowmo = 0; this.koDark = 0; this.balls.length = 0; this.shadows.length = 0; this.ghosts.length = 0;
       this.p1.rage = false; this.p2.rage = false; this.p1.jumps = this.p2.jumps = 1;
       const OPP = [
-        { name: 'الجناح السريع', hp: 90, speed: 1.35, aggr: 0.8, block: 0.1, dodge: 0.35, filter: 'sepia(0.55) saturate(1.5) brightness(1.05)' },
-        { name: 'المدافع الصلب', hp: 130, speed: 0.85, aggr: 0.7, block: 0.55, dodge: 0.1, filter: 'grayscale(0.6) contrast(1.15) brightness(0.8)' },
-        { name: 'شوشع الذهبي — الزعيم', hp: 160, speed: 1.15, aggr: 1.0, block: 0.3, dodge: 0.3, boss: true, scale: 1.12, filter: 'sepia(1) saturate(3.2) hue-rotate(-12deg) brightness(1.1)' }
+        { name: 'الجناح السريع', hp: 90, speed: 1.35, aggr: 0.8, block: 0.1, dodge: 0.35 },
+        { name: 'المدافع الصلب', hp: 130, speed: 0.85, aggr: 0.7, block: 0.55, dodge: 0.1 },
+        { name: 'شوشع الذهبي — الزعيم', hp: 160, speed: 1.15, aggr: 1.0, block: 0.3, dodge: 0.3, boss: true, scale: 1.12 }
       ];
       const cfg = (!fullRestart && this.p1wins >= 1) ? OPP[2] : OPP[fullRestart ? 0 : (this.round - 1) % 2];
       this.p2.cfg = cfg; this.p2.maxHp = this.p2.hp = cfg.hp; this.p2.scale = cfg.scale || 1; this.p2.rage = !!cfg.boss;
-      const nm = document.querySelector('#p2 .name span:last-child'); if (nm) nm.textContent = cfg.name;
+      this.p1.ch = CHARS[this.charIndex];
+      const others = CHARS.filter(c => c !== this.p1.ch);
+      this.p2.ch = others[Math.floor(Math.random() * others.length)];
+      const n1 = document.querySelector('#p1 .name span:first-child'); if (n1) n1.textContent = this.p1.ch.name;
+      const nm = document.querySelector('#p2 .name span:last-child'); if (nm) nm.textContent = (cfg.boss ? 'الزعيم — ' : '') + this.p2.ch.name;
       if (cfg.boss) this.banner('الزعيم الأخير!', 'red', 1.4);
       this.bannerTimer = 0;
       const el = document.getElementById('announceTxt');
@@ -575,7 +561,7 @@
       this.state = 'over';
       const p1Won = this.p1wins >= ROUNDS_TO_WIN;
       this.p1.win = p1Won;
-      this.banner(p1Won ? 'شوشع يربح!' : 'خسرنا يا حبيبي', p1Won ? 'win' : 'red', 3);
+      this.banner(p1Won ? this.p1.ch.name + ' يربح!' : 'خسرنا يا حبيبي', p1Won ? 'win' : 'red', 3);
       audio.crowd();
     },
 
@@ -850,11 +836,9 @@
       }
       // afterimages
       for (const g of this.ghosts) {
-        const im = g.img; if (!im) continue;
-        const sc = 1 / 2.15, w = im.width * sc, h = im.height * sc;
         ctx.save(); ctx.globalAlpha = 0.38 * (g.life / g.max);
         ctx.translate(g.x - this.camera, g.y); if (g.facing < 0) ctx.scale(-1, 1);
-        ctx.drawImage(im, -w / 2, -h, w, h); ctx.restore();
+        drawPuppet(ctx, g.ch, g.pose, 'dash', { flat: g.rage ? '#ff7a6a' : '#8fe8b0' }); ctx.restore();
       }
       // fighters
       this.drawFighter(this.p2);
@@ -902,12 +886,8 @@
     },
 
     drawFighter(f) {
-      const img = f.sprite();
-      if (!img) return;
+      if (!f.pose) return;
       const sx = f.x - this.camera;
-      // uniform world scale: sprites baked at ~240px tall
-      const sc = 1 / 2.15;
-      const dw = img.width * sc, dh = img.height * sc;
       ctx.save();
       if (f.hitFlash > 0) {
         ctx.globalAlpha = 0.55 + Math.random() * 0.45;
@@ -932,12 +912,11 @@
       ctx.translate(sx, f.y + dy);
       ctx.rotate(rot * f.facing + f.fatal * f.facing);
       ctx.scale(sxs * f.scale, sys * f.scale);
-      if (f.cfg && 'filter' in ctx) ctx.filter = f.cfg.filter;
       if (f.inv > 0) ctx.globalAlpha = 0.5;
       if (f.facing < 0) ctx.scale(-1, 1);
       if (f.state === 'hurt' && f.timer > 0) ctx.rotate(-0.12 * (f.facing < 0 ? -1 : 1) * (1 - f.timer / 30));
       if (f.state === 'down') ctx.rotate(-Math.PI / 2 * 0.92);
-      ctx.drawImage(img, -dw / 2, -dh, dw, dh);
+      drawPuppet(ctx, f.ch, f.pose, f.state, { boss: !!(f.cfg && f.cfg.boss), flat: f.hitFlash > 0.14 ? '#ffffff' : null });
       ctx.restore();
 
       // shadow
@@ -999,8 +978,26 @@
     });
   }
 
+  function buildCharList() {
+    const el = document.getElementById('charList');
+    el.innerHTML = '';
+    CHARS.forEach((c, i) => {
+      const card = document.createElement('div');
+      card.className = 'stage-card char-card' + (i === game.charIndex ? ' sel' : '');
+      const cv = document.createElement('canvas'); cv.width = 70; cv.height = 96;
+      const g = cv.getContext('2d'); g.translate(35, 92); g.scale(0.85, 0.85);
+      const fake = { state: 'idle', anim: 0, vx: 0, vy: 0, y: 300, chain: 0 };
+      drawPuppet(g, c, puppetTarget_(fake), 'idle', {});
+      const nm = document.createElement('div'); nm.className = 'sname'; nm.textContent = c.name + ' — ' + c.note;
+      card.appendChild(cv); card.appendChild(nm);
+      card.onclick = () => { game.charIndex = i; [...el.children].forEach(x => x.classList.remove('sel')); card.classList.add('sel'); };
+      el.appendChild(card);
+    });
+  }
+  function puppetTarget_(f) { puppetStep(f, 0.016); return f.pose; }
+
   // ---------- boot ----------
-  document.getElementById('btnStart').onclick = () => { buildStageList(); showScreen('scrStage'); };
+  document.getElementById('btnStart').onclick = () => { buildCharList(); buildStageList(); showScreen('scrStage'); };
   document.getElementById('btnHelp').onclick = () => showScreen('scrHelp');
   document.getElementById('btnHelpBack').onclick = () => showScreen('scrTitle');
   document.getElementById('btnStageBack').onclick = () => showScreen('scrTitle');

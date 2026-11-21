@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>شوشع فايتر — Mortal Kombat جزائري</title>
+<title>حلبة الأبطال</title>
 <style>
   :root {
     --green: #0f8b3f;
@@ -179,8 +179,9 @@
   }
   .stage-card:hover { border-color: var(--gold); }
   .stage-card.sel { border-color: var(--gold); box-shadow: 0 0 20px rgba(242,194,48,.4); }
-  .stage-card img { width: 100%; height: 100px; object-fit: cover; display: block; }
+  .stage-card img { width: 100%; height: 56px; object-fit: cover; display: block; }
   .stage-card .sname { padding: 6px; font-size: 13px; font-weight: 800; }
+  .char-card canvas { display:block; width:42px; height:58px; margin:4px auto 0; background:#0d141d; }
   #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #05070a; z-index: 30; font-size: 20px; color: var(--gold); font-weight: 800; }
 </style>
 </head>
@@ -191,7 +192,7 @@
 
     <div id="hud">
       <div id="p1" class="bar-wrap">
-        <div class="name"><span>شوشع</span><span class="tag">أنت</span></div>
+        <div class="name"><span>المحقق</span><span class="tag">أنت</span></div>
         <div class="bar"><div class="lag"></div><div class="fill"></div></div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:center">
@@ -199,7 +200,7 @@
         <div class="round-dots" id="rounds"></div>
       </div>
       <div id="p2" class="bar-wrap" style="text-align:right">
-        <div class="name"><span class="tag">CPU</span><span>شوشع</span></div>
+        <div class="name"><span class="tag">CPU</span><span>الظل</span></div>
         <div class="bar right"><div class="lag"></div><div class="fill"></div></div>
       </div>
     </div>
@@ -224,12 +225,12 @@
 
     <!-- TITLE -->
     <div class="screen show" id="scrTitle">
-      <div class="title">شوشع فايتر</div>
-      <div class="subtitle">Mortal Kombat جزائري — جولة الشرف</div>
+      <div class="title">حلبة الأبطال</div>
+      <div class="subtitle">قتال كرتوني — اختر بطلك</div>
       <button class="btn" id="btnStart">يدخل الحلبة</button>
       <div class="hint">
-        شخصية وحدة قابلة للتحكم: <b>حسين شوشع</b> — أسطورةéquipeالجزائرية.
-        الخصم هو <b>شوشع آخر</b> (مرآة) يلقاك بالأسسوأ.
+        4 أبطال كرتونيين أصليين: <b>المحقق، الظل، روبو، دبدوب</b>.
+        الخصوم متنوعون وفي الآخر زعيم ذهبي.
       </div>
       <button class="btn ghost" id="btnHelp">التحكم</button>
     </div>
@@ -258,8 +259,9 @@
 
     <!-- STAGE SELECT -->
     <div class="screen" id="scrStage">
-      <div class="title" style="font-size:clamp(20px,4vw,44px)">اختار الحلبة</div>
-      <div class="stage-list" id="stageList"></div>
+      <div class="title" style="font-size:clamp(20px,4vw,44px)">اختر بطلك والحلبة</div>
+      <div class="stage-list" id="charList" style="grid-template-columns:repeat(4,1fr);width:min(96%,780px)"></div>
+      <div class="stage-list" id="stageList" style="grid-template-columns:repeat(4,1fr)"></div>
       <button class="btn" id="btnFight">يلّا نقاتل</button>
       <button class="btn ghost" id="btnStageBack">رجوع</button>
     </div>
@@ -275,22 +277,11 @@
   </div>
 </div>
 
-<script src="assets-parts/sprite-idle1.js"></script>
-<script src="assets-parts/sprite-idle2.js"></script>
-<script src="assets-parts/sprite-walk1.js"></script>
-<script src="assets-parts/sprite-run1.js"></script>
-<script src="assets-parts/sprite-punch.js"></script>
-<script src="assets-parts/sprite-kick.js"></script>
-<script src="assets-parts/sprite-hurt.js"></script>
-<script src="assets-parts/sprite-down.js"></script>
-<script src="assets-parts/sprite-jump.js"></script>
-<script src="assets-parts/sprite-block.js"></script>
-<script src="assets-parts/sprite-special.js"></script>
-<script src="assets-parts/sprite-win.js"></script>
 <script src="assets-parts/stage-maqam.js"></script>
 <script src="assets-parts/stage-casbah.js"></script>
 <script src="assets-parts/stage-djamaa.js"></script>
 <script src="assets-parts/stage-opera.js"></script>
+<script src="characters.js"></script>
 <script src="assets.js"></script>
 <script src="game.js"></script>
 </body>
