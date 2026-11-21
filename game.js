@@ -996,10 +996,9 @@
         const gl = ctx.createRadialGradient(40, -62, 2, 40, -62, 34); gl.addColorStop(0, 'rgba(120,230,255,.9)'); gl.addColorStop(1, 'rgba(70,217,255,0)');
         ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(40, -62, 14 + f.anim, 0, 6.283); ctx.fill();
       }
-      pg.setTransform(1, 0, 0, 1, 0, 0); pg.clearRect(0, 0, 100, 100); pg.translate(50, 80); pg.scale(0.5, 0.5);
-      drawPuppet(pg, f.ch, f.pose, f.state, { boss: !!(f.cfg && f.cfg.boss), flat: f.hitFlash > 0.14 ? '#ffffff' : null });
+      const px = pixelRender(f.ch, f.pose, f.state, { boss: !!(f.cfg && f.cfg.boss), flat: f.hitFlash > 0.14 ? '#ffffff' : null });
       const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(PXC, -100, -160, 200, 200);
+      ctx.drawImage(px, -45 / PXS, -72 / PXS, PXN / PXS, PXN / PXS);
       ctx.imageSmoothingEnabled = sm;
       ctx.restore();
 
@@ -1016,8 +1015,22 @@
 
   function floatMiss(x, y) { game.sparks({ x, y }, '#ffffff', 6); }
 
-  const PXC = document.createElement('canvas'); PXC.width = 100; PXC.height = 100;
-  const pg = PXC.getContext('2d');
+  // characters are rendered at low resolution, alpha/colour quantised, then scaled up -> real pixel-art look
+  const PXS = 0.4, PXN = 90;
+  const PXC = document.createElement('canvas'); PXC.width = PXN; PXC.height = PXN;
+  const pg = PXC.getContext('2d', { willReadFrequently: true });
+  function pixelRender(ch, pose, state, opts) {
+    pg.setTransform(1, 0, 0, 1, 0, 0); pg.clearRect(0, 0, PXN, PXN);
+    pg.translate(45, 72); pg.scale(PXS, PXS);
+    drawPuppet(pg, ch, pose, state, opts);
+    const im = pg.getImageData(0, 0, PXN, PXN), d = im.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 110) { d[i + 3] = 0; continue; }
+      d[i + 3] = 255; d[i] = Math.round(d[i] / 43) * 43; d[i + 1] = Math.round(d[i + 1] / 43) * 43; d[i + 2] = Math.round(d[i + 2] / 43) * 43;
+    }
+    pg.putImageData(im, 0, 0);
+    return PXC;
+  }
 
   // ---------- HUD ----------
   function updateHud() {
@@ -1071,10 +1084,9 @@
     CHARS.forEach((c, i) => {
       const card = document.createElement('div');
       card.className = 'stage-card char-card' + (i === game.charIndex ? ' sel' : '');
-      const cv = document.createElement('canvas'); cv.width = 70; cv.height = 96;
-      const g = cv.getContext('2d'); g.translate(35, 92); g.scale(0.85, 0.85);
-      const fake = { state: 'idle', anim: 0, vx: 0, vy: 0, y: 300, chain: 0 };
-      drawPuppet(g, c, puppetTarget_(fake), 'idle', {});
+      const cv = document.createElement('canvas'); cv.width = PXN; cv.height = PXN;
+      const fake = { state: 'idle', anim: 0, vx: 0, vy: 0, y: 300, chain: 0, ch: c };
+      cv.getContext('2d').drawImage(pixelRender(c, puppetTarget_(fake), 'idle', {}), 0, 0);
       const nm = document.createElement('div'); nm.className = 'sname'; nm.textContent = c.name + ' — ' + c.note;
       card.appendChild(cv); card.appendChild(nm);
       card.onclick = () => { game.charIndex = i; [...el.children].forEach(x => x.classList.remove('sel')); card.classList.add('sel'); };
