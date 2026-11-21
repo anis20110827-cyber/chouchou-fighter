@@ -39,6 +39,7 @@
     else if (st === 'dodge') { lean = -18; crouch = 10; }
     else if (st === 'cast') lean = -4 + 6 * Math.sin(p * 3.14);
     else if (st === 'special') lean = 16;
+    else if (st === 'sp') lean = (f.ch && f.ch.key === 'bot') ? -4 : 6;
 
     const hip = { x: twist, y: -40 + crouch };
     const sh = { x: lean, y: -68 + crouch * 1.1 };
@@ -65,6 +66,13 @@
       else fa = { x: 20 + 76 * pe, y: -44 - 42 * Math.sin(Math.min(1, pe) * 1.57) + 10 * pe };
       fb = { x: -10 - 4 * pe, y: 0 };
       ha = { x: sh.x - 22 * pe - 6, y: sh.y + 2 - 8 * pe }; hb = { x: sh.x + 18 - 8 * pw, y: sh.y - 8 };
+    } else if (st === 'sp') {
+      const k = f.ch && f.ch.key, a2 = an;
+      fa = { x: 22, y: 0 }; fb = { x: -20, y: 0 };
+      if (k === 'det') { const x = a2 < 8 ? 6 : (a2 < 20 ? 48 : 22); ha = { x: sh.x + x, y: sh.y + 4 }; hb = { x: sh.x + 8, y: sh.y + 10 }; }
+      else if (k === 'ninja') { const go = a2 >= 8; ha = { x: sh.x + (go ? 46 : 4), y: sh.y + (go ? -2 : -20) }; hb = { x: sh.x + (go ? 38 : 0), y: sh.y + (go ? 8 : -16) }; }
+      else if (k === 'bot') { const go = a2 >= 14; ha = { x: sh.x + (go ? 52 : 20), y: sh.y + (go ? -16 : -4) }; hb = { x: sh.x + (go ? 46 : 16), y: sh.y + (go ? -10 : 2) }; fa = { x: 28, y: 0 }; fb = { x: -26, y: 0 }; }
+      else { const up = a2 < 12 || air; ha = { x: sh.x + 8, y: sh.y + (up ? -42 : 30) }; hb = { x: sh.x - 8, y: sh.y + (up ? -42 : 30) }; fa = { x: 12, y: up ? -24 : 0 }; fb = { x: -10, y: up ? -22 : 0 }; }
     } else if (st === 'cast') {
       const go = p > 0.35;
       ha = { x: sh.x + (go ? 44 : 6), y: sh.y + (go ? 4 : 14) }; hb = { x: sh.x + (go ? 38 : 2), y: sh.y + (go ? 10 : 20) };

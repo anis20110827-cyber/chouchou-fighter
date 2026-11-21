@@ -169,7 +169,7 @@
     get cy() { return this.y - this.h / 2; }
 
     setState(s, dur) {
-      this.state = s; this.timer = dur; this.anim = 0; this.hitDone = false;
+      this.state = s; this.timer = dur; this.anim = 0; this.hitDone = false; this.sp0 = this.sp1 = this.sp2 = false;
     }
 
     update(dt) {
@@ -282,7 +282,7 @@
     roundEnded: false,
     startTime: 0,
     hitStop: 0,
-    aiTimer: 0, aiPlan: 'approach', finish: null, charIndex: 0,
+    aiTimer: 0, aiPlan: 'approach', finish: null, beams: [], charIndex: 0,
     particles: [], ghosts: [], rings: [], balls: [], shadows: [], koDark: 0,
     comboPopup: null,
     comboPopupTimer: 0,
@@ -362,11 +362,66 @@
       }
     },
 
+    dealSpecial(att, def, dmg, dir, lift) {
+      if (def.inv > 0 || def.state === 'down' || def.hp <= 0) return false;
+      const blk = def.state === 'block';
+      def.hp = Math.max(0, def.hp - dmg * (blk ? 0.3 : 1) * (att.rage ? 1.25 : 1));
+      def.hitFlash = 0.25; def.vx = dir * (blk ? 2 : 6.5); def.vy = blk ? 0 : -lift;
+      if (!blk) def.setState('hurt', 30);
+      att.combo++; att.comboTimer = 1.4;
+      this.hitStop = 0.12; this.shake = 12; audio.kick();
+      this.sparks({ x: def.x, y: def.y - 45 }, '#ffffff', 16); this.ring(def.x, def.y - 45, 'rgba(255,255,255,.9)', 70);
+      if (def.hp <= 0) this.endRound(att === this.p1, 'ko');
+      return true;
+    },
+
+    useSpecial(f) {
+      f.energy = 0;
+      f.setState('sp', { det: 40, ninja: 30, bot: 46, bear: 52 }[f.ch.key] || 36);
+      audio.special(); this.shake = 6;
+      this.ring(f.x, f.y - 40, 'rgba(255,255,255,.9)', 60);
+    },
+
+    stepSpecial(f) {
+      const k = f.ch.key, an = f.anim, opp = f === this.p1 ? this.p2 : this.p1;
+      if (k !== 'bear') f.vx *= 0.8;
+      if (k === 'det') {
+        if (an >= 8 && !f.sp1) {
+          f.sp1 = true; const dir = opp.x >= f.x ? 1 : -1;
+          this.sparks({ x: f.x, y: f.y - 40 }, '#c9d4ff', 12);
+          f.x = Math.max(50, Math.min(STAGE_W - 50, opp.x + dir * 58)); f.facing = -dir; f.inv = 18;
+          this.sparks({ x: f.x, y: f.y - 40 }, '#c9d4ff', 12); this.ring(f.x, f.y - 40, 'rgba(201,212,255,.9)', 60);
+        }
+        if (an >= 15 && !f.sp2) { f.sp2 = true; this.dealSpecial(f, opp, 17, f.facing, 5); }
+      } else if (k === 'ninja') {
+        if (an >= 8 && !f.sp1) {
+          f.sp1 = true;
+          for (const a of [-0.24, 0, 0.24]) this.balls.push({ x: f.x + f.facing * 34, y: f.y - 54, vx: f.facing * 8.6 * Math.cos(a), vy: 8.6 * Math.sin(a), owner: f, rot: 0, life: 1.5, kind: 'star', dmg: 7 });
+          audio.whoosh();
+        }
+      } else if (k === 'bot') {
+        if (an >= 16 && !f.sp1) {
+          f.sp1 = true; f.vx = -f.facing * 1.2;
+          this.beams.push({ x: f.x + f.facing * 30, y: f.y - 52, dir: f.facing, life: 0.4 });
+          this.shake = 10;
+          const db = opp.hurtBox(), by = f.y - 52;
+          if ((opp.x - f.x) * f.facing > 0 && db.y < by + 8 && db.y + db.h > by - 8) this.dealSpecial(f, opp, 16, f.facing, 4);
+        }
+      } else if (k === 'bear') {
+        if (!f.sp0) { f.sp0 = true; f.vy = -11; f.vx = f.facing * 2.2; }
+        if (an > 10 && f.y >= GROUND && !f.sp1) {
+          f.sp1 = true; f.vx = 0; this.shake = 20; this.hitStop = 0.06;
+          this.ring(f.x, GROUND - 2, 'rgba(255,220,150,.95)', 170); this.sparks({ x: f.x, y: GROUND - 4 }, '#d8c9a8', 26);
+          if (Math.abs(opp.x - f.x) < 150 && opp.y >= GROUND - 4) this.dealSpecial(f, opp, 17, opp.x >= f.x ? 1 : -1, 7);
+        }
+      }
+    },
+
     stepBalls(d) {
       for (let i = this.balls.length - 1; i >= 0; i--) {
         const b = this.balls[i];
-        b.x += b.vx * d * 60; b.rot += b.vx * 0.06 * d * 60; b.life -= d;
-        if (Math.random() < 0.7) this.particles.push({ x: b.x - b.vx * 2, y: b.y + (Math.random() - .5) * 8, vx: -b.vx * 0.15, vy: -0.4, life: 0.3, max: 0.3, color: Math.random() < 0.5 ? '#ff8a2e' : '#ffd24a', size: 3 + Math.random() * 3 });
+        b.x += b.vx * d * 60; b.y += (b.vy || 0) * d * 60; b.rot += b.vx * 0.06 * d * 60 * (b.kind === 'star' ? 3 : 1); b.life -= d;
+        if (b.kind !== 'star' && Math.random() < 0.7) this.particles.push({ x: b.x - b.vx * 2, y: b.y + (Math.random() - .5) * 8, vx: -b.vx * 0.15, vy: -0.4, life: 0.3, max: 0.3, color: Math.random() < 0.5 ? '#ff8a2e' : '#ffd24a', size: 3 + Math.random() * 3 });
         const def = b.owner === this.p1 ? this.p2 : this.p1;
         const db = def.hurtBox();
         const hitIt = b.x > db.x - 8 && b.x < db.x + db.w + 8 && b.y > db.y && b.y < db.y + db.h;
@@ -378,7 +433,7 @@
             continue;
           }
           const att = b.owner;
-          def.hp = Math.max(0, def.hp - 9 * (att.rage ? 1.25 : 1));
+          def.hp = Math.max(0, def.hp - (b.dmg || 9) * (att.rage ? 1.25 : 1));
           def.hitFlash = 0.22; def.vx = dir * 5; def.vy = -3.4;
           def.setState('hurt', 24);
           att.combo++; att.comboTimer = 1.4;
@@ -391,8 +446,23 @@
     },
 
     drawBalls() {
+      for (const b of this.beams) {
+        const a = Math.max(0, b.life / 0.4), x0 = b.x - this.camera, len = b.dir > 0 ? STAGE_W - b.x + 40 : b.x + 40;
+        const xl = b.dir > 0 ? x0 : x0 - len;
+        const g = ctx.createLinearGradient(0, b.y - 12, 0, b.y + 12);
+        g.addColorStop(0, 'rgba(70,217,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,' + a + ')'); g.addColorStop(1, 'rgba(70,217,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(xl, b.y - 12 * (0.4 + a), len, 24 * (0.4 + a));
+        ctx.fillStyle = 'rgba(70,217,255,' + (0.35 * a) + ')'; ctx.fillRect(xl, b.y - 22, len, 44);
+        b.life -= 1 / 60;
+      }
+      this.beams = this.beams.filter(b => b.life > 0);
       for (const b of this.balls) {
         const x = b.x - this.camera;
+        if (b.kind === 'star') {
+          ctx.save(); ctx.translate(x, b.y); ctx.rotate(b.rot); ctx.fillStyle = '#d8dde6'; ctx.strokeStyle = '#10131a'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); for (let k = 0; k < 8; k++) { const r = k % 2 ? 4 : 11, a = k * 0.7854; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+          continue;
+        }
         const g = ctx.createRadialGradient(x, b.y, 2, x, b.y, 26);
         g.addColorStop(0, 'rgba(255,200,80,.85)'); g.addColorStop(1, 'rgba(255,120,30,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, b.y, 26, 0, 6.283); ctx.fill();
@@ -452,7 +522,7 @@
       this.p1.energy = 100; this.p2.energy = 100;
       this.p1.win = false; this.p2.win = false;
       this.roundEnded = false;
-      this.finish = null; this.p2.fatal = 0; this.koSlowmo = 0; this.koDark = 0; this.balls.length = 0; this.shadows.length = 0; this.ghosts.length = 0;
+      this.finish = null; this.p2.fatal = 0; this.koSlowmo = 0; this.koDark = 0; this.balls.length = 0; this.beams.length = 0; this.shadows.length = 0; this.ghosts.length = 0;
       this.p1.rage = false; this.p2.rage = false; this.p1.jumps = this.p2.jumps = 1;
       const OPP = [
         { name: 'الجناح السريع', hp: 90, speed: 1.35, aggr: 0.8, block: 0.1, dodge: 0.35 },
@@ -545,7 +615,7 @@
       if (winnerIsP1) { this.p1wins++; this.p1.win = true; this.p2.setState('down', 99); this.p1.setState('win', 99999); this.p1.hopT = 20; }
       else { this.p2wins++; this.p2.win = true; this.p1.setState('down', 99); this.p2.setState('win', 99999); this.p2.hopT = 20; }
       audio.ko();
-      this.koSlowmo = 1.1; this.koDark = 1.7; this.balls.length = 0; this.shadows.length = 0;
+      this.koSlowmo = 1.1; this.koDark = 1.7; this.balls.length = 0; this.beams.length = 0; this.shadows.length = 0;
       this.shake = 14;
       const flawless = winnerIsP1 && reason === 'ko' && this.p1.hp >= this.p1.maxHp;
       this.banner(flawless ? 'FLAWLESS VICTORY' : (reason === 'time' ? 'الوقت خلص!' : 'K.O.'), flawless ? 'win' : 'red', 1.8);
@@ -637,6 +707,7 @@
 
     controlPlayer(f, dt) {
       if (f.state === 'hurt' || f.state === 'down' || f.state === 'win') return;
+      if (f.state === 'sp') { this.stepSpecial(f); return; }
       if (f.state === 'cast') { f.vx *= 0.6; if (!f.hitDone && f.anim >= 6) { f.hitDone = true; this.fire(f); } return; }
       if (f.state === 'dodge') { return; }
       if (f.state === 'punch' && f.hitDone && f.anim >= 6 && hit('punch')) { f.setState('punch', 16); audio.whoosh(); return; }
@@ -660,8 +731,7 @@
       }
       if (hit('ball') && f.energy >= 25) { f.setState('cast', 16); audio.whoosh(); return; }
       if (hit('special') && f.energy >= 40) {
-        f.energy = 0; f.setState('special', 34); f.vy = -5.4; f.vx = f.facing * 3.4;
-        audio.special(); this.shake = 8; return;
+        this.useSpecial(f); return;
       }
       if (hit('up')) {
         if (f.y === GROUND) {
@@ -689,6 +759,7 @@
 
     controlCPU(f, dt, opp) {
       if (f.state === 'hurt' || f.state === 'down' || f.state === 'win') return;
+      if (f.state === 'sp') { this.stepSpecial(f); return; }
       if (f.state === 'cast') { f.vx *= 0.6; if (!f.hitDone && f.anim >= 6) { f.hitDone = true; this.fire(f); } return; }
       if (f.state === 'punch' && f.hitDone && f.anim >= 6 && Math.random() < 0.1) { f.setState(Math.random() < 0.7 ? 'punch' : 'kick', 16); audio.whoosh(); return; }
       if (f.state === 'punch' || f.state === 'kick' || f.state === 'special') {
@@ -753,7 +824,7 @@
         case 'kick':
           f.setState('kick', 22); audio.whoosh(); this.aiPlan = 'wait'; break;
         case 'special':
-          if (f.energy >= 40) { f.energy = 0; f.setState('special', 34); f.vy = -5.4; f.vx = f.facing * 3.4; audio.special(); }
+          if (f.energy >= 40) this.useSpecial(f);
           else f.setState('idle', 0);
           this.aiPlan = 'wait';
           break;
@@ -920,7 +991,16 @@
       if (f.facing < 0) ctx.scale(-1, 1);
       if (f.state === 'hurt' && f.timer > 0) ctx.rotate(-0.12 * (f.facing < 0 ? -1 : 1) * (1 - f.timer / 30));
       if (f.state === 'down') ctx.rotate(-Math.PI / 2 * 0.92);
-      drawPuppet(ctx, f.ch, f.pose, f.state, { boss: !!(f.cfg && f.cfg.boss), flat: f.hitFlash > 0.14 ? '#ffffff' : null });
+      if (f.state === 'sp' && f.ch.key === 'det' && f.anim < 8) ctx.globalAlpha *= Math.max(0.05, 1 - f.anim / 7);
+      if (f.state === 'sp' && f.ch.key === 'bot' && f.anim < 18) {
+        const gl = ctx.createRadialGradient(40, -62, 2, 40, -62, 34); gl.addColorStop(0, 'rgba(120,230,255,.9)'); gl.addColorStop(1, 'rgba(70,217,255,0)');
+        ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(40, -62, 14 + f.anim, 0, 6.283); ctx.fill();
+      }
+      pg.setTransform(1, 0, 0, 1, 0, 0); pg.clearRect(0, 0, 100, 100); pg.translate(50, 80); pg.scale(0.5, 0.5);
+      drawPuppet(pg, f.ch, f.pose, f.state, { boss: !!(f.cfg && f.cfg.boss), flat: f.hitFlash > 0.14 ? '#ffffff' : null });
+      const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(PXC, -100, -160, 200, 200);
+      ctx.imageSmoothingEnabled = sm;
       ctx.restore();
 
       // shadow
@@ -935,6 +1015,9 @@
   };
 
   function floatMiss(x, y) { game.sparks({ x, y }, '#ffffff', 6); }
+
+  const PXC = document.createElement('canvas'); PXC.width = 100; PXC.height = 100;
+  const pg = PXC.getContext('2d');
 
   // ---------- HUD ----------
   function updateHud() {
