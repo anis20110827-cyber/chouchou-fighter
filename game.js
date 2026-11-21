@@ -185,6 +185,10 @@
       }
       if (this.comboTimer > 0) { this.comboTimer -= dt; if (this.comboTimer <= 0) this.combo = 0; }
 
+      if (this.state === 'win') {            // victory hops
+        this.vx *= 0.8; this.hopT = (this.hopT || 0) - fr;
+        if (this.hopT <= 0 && this.y >= GROUND) { this.vy = -6.8; this.hopT = 46; game.sparks({ x: this.x, y: GROUND - 2 }, '#ffd24a', 5); }
+      }
       // gravity
       this.vy += GRAV * fr;
       this.y += this.vy * fr;
@@ -538,8 +542,8 @@
     endRound(winnerIsP1, reason) {
       if (this.roundEnded) return;
       this.roundEnded = true;
-      if (winnerIsP1) { this.p1wins++; this.p1.win = true; this.p2.setState('down', 99); }
-      else { this.p2wins++; this.p2.win = true; this.p1.setState('down', 99); }
+      if (winnerIsP1) { this.p1wins++; this.p1.win = true; this.p2.setState('down', 99); this.p1.setState('win', 99999); this.p1.hopT = 20; }
+      else { this.p2wins++; this.p2.win = true; this.p1.setState('down', 99); this.p2.setState('win', 99999); this.p2.hopT = 20; }
       audio.ko();
       this.koSlowmo = 1.1; this.koDark = 1.7; this.balls.length = 0; this.shadows.length = 0;
       this.shake = 14;

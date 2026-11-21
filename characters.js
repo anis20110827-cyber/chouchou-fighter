@@ -42,7 +42,7 @@
 
     const hip = { x: twist, y: -40 + crouch };
     const sh = { x: lean, y: -68 + crouch * 1.1 };
-    const head = { x: lean * 1.25, y: -86 + crouch * 1.2 };
+    const head = { x: lean * 1.25, y: -88 + crouch * 1.2 };
     let fa = { x: 11, y: 0 }, fb = { x: -11, y: 0 };
     let ha = { x: sh.x + 18, y: sh.y + 14 }, hb = { x: sh.x + 10, y: sh.y + 22 };
 
@@ -124,6 +124,11 @@
     g.beginPath(); g.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
     g.strokeStyle = outline; g.lineWidth = w + 3.4; g.stroke();
     g.strokeStyle = col; g.lineWidth = w; g.stroke();
+    if (outline !== 'rgba(0,0,0,0)' && outline !== '#0b0614' && w > 6 && col.charAt(0) === '#' && outline.charAt(0) === '#' && outline !== '#10131a' + 'x') {
+      g.save(); g.translate(-w * 0.2, -w * 0.2);
+      g.beginPath(); g.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+      g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = w * 0.28; g.stroke(); g.restore();
+    }
   }
 
   window.drawPuppet = function (g, ch, ps, state, opts) {
@@ -148,7 +153,8 @@
     // front leg + shoes
     stroke(g, [L.hip, ik(L.hip, L.fa, 21, 1), L.fa], wLimb + 0.5, dark, OUT);
     g.fillStyle = flat || (ch.head === 'ninja' ? dark : (ch.head === 'robot' ? accent : '#1c1c22'));
-    for (const f of [L.fb, L.fa]) { g.beginPath(); g.ellipse(f.x + 4, f.y - 2, 8, 4.5, 0, 0, 6.283); g.fill(); g.strokeStyle = OUT; g.lineWidth = 1.6; g.stroke(); }
+    for (const f of [L.fb, L.fa]) { g.beginPath(); g.ellipse(f.x + 4, f.y - 3, 9, 5.5, 0, 0, 6.283); g.fill(); g.strokeStyle = OUT; g.lineWidth = 1.6; g.stroke();
+      if (!flat) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(f.x - 4, f.y - 1.2, 16, 2.4); g.fillStyle = flat || (ch.head === 'ninja' ? dark : (ch.head === 'robot' ? accent : '#1c1c22')); } }
     // head
     const hx = L.head.x, hy = L.head.y;
     g.lineWidth = 2.4; g.strokeStyle = OUT;
@@ -164,11 +170,11 @@
       g.fillStyle = accent; g.fillRect(hx + 3, hy - 4, 7, 4);
     } else {
       g.fillStyle = ch.head === 'ninja' ? dark : skin;
-      g.beginPath(); g.arc(hx, hy, 12.5, 0, 6.283); g.fill(); g.stroke();
+      g.beginPath(); g.arc(hx, hy, 14, 0, 6.283); g.fill(); g.stroke();
       if (ch.head === 'ninja') {
-        g.fillStyle = skin; g.fillRect(hx - 2, hy - 6, 14, 8);
-        g.fillStyle = accent; g.fillRect(hx - 12.5, hy - 9, 25, 4);
-        stroke(g, [{ x: hx - 12, y: hy - 7 }, { x: hx - 24, y: hy - 4 + Math.sin(performance.now() * 0.01) * 3 }], 3, accent, OUT);
+        g.fillStyle = skin; g.fillRect(hx - 2, hy - 7, 16, 9);
+        g.fillStyle = accent; g.fillRect(hx - 14, hy - 10, 28, 4.5);
+        stroke(g, [{ x: hx - 13, y: hy - 8 }, { x: hx - 27, y: hy - 4 + Math.sin(performance.now() * 0.01) * 4 }], 3, accent, OUT);
       }
       if (ch.head === 'bear') {
         g.fillStyle = accent; g.beginPath(); g.ellipse(hx + 6, hy + 3, 7, 5.5, 0, 0, 6.283); g.fill();
@@ -178,18 +184,31 @@
       if (!flat) {
         const sad = state === 'hurt' || state === 'down';
         if (sad) { g.strokeStyle = '#111'; g.lineWidth = 1.8; g.beginPath(); g.moveTo(hx + 3, hy - 5); g.lineTo(hx + 9, hy + 1); g.moveTo(hx + 9, hy - 5); g.lineTo(hx + 3, hy + 1); g.stroke(); }
-        else if (ch.head !== 'ninja' || true) { g.fillStyle = '#fff'; g.beginPath(); g.ellipse(hx + 6, hy - 3, 3.6, 4.2, 0, 0, 6.283); g.fill(); g.fillStyle = '#111'; g.beginPath(); g.arc(hx + 7.4, hy - 3, 1.8, 0, 6.283); g.fill(); }
+        else {
+          g.fillStyle = '#fff'; g.beginPath(); g.ellipse(hx + 6, hy - 3, 4.4, 5, 0, 0, 6.283); g.fill();
+          g.strokeStyle = OUT; g.lineWidth = 1.2; g.stroke();
+          g.fillStyle = '#111'; g.beginPath(); g.arc(hx + 7.6, hy - 3, 2.3, 0, 6.283); g.fill();
+          g.fillStyle = '#fff'; g.beginPath(); g.arc(hx + 8.2, hy - 4, 0.8, 0, 6.283); g.fill();
+          const atk = state === 'punch' || state === 'kick' || state === 'special' || state === 'cast';
+          g.strokeStyle = ch.head === 'bear' ? '#4a2f1b' : '#2a1a10'; g.lineWidth = 2;
+          g.beginPath(); g.moveTo(hx + 1.5, hy - 8.5 - (atk ? 0 : 1)); g.lineTo(hx + 10, hy - (atk ? 5 : 9.5) - 3 + (atk ? 0 : 0)); g.stroke();
+          if (ch.head !== 'bear') {
+            g.strokeStyle = '#6b2a2a'; g.fillStyle = '#5a1f22'; g.lineWidth = 1.6;
+            if (atk || state === 'win') { g.beginPath(); g.ellipse(hx + 7, hy + 7, 3.4, atk ? 2.6 : 3.4, 0, 0, 6.283); g.fill(); }
+            else { g.beginPath(); g.moveTo(hx + 3, hy + 7); g.quadraticCurveTo(hx + 7, hy + 9, hx + 10, hy + 6.5); g.stroke(); }
+          }
+        }
       }
       if (ch.head === 'hat') {
-        g.fillStyle = dark; g.beginPath(); g.ellipse(hx, hy - 9, 17, 4.2, 0, 0, 6.283); g.fill(); g.stroke();
-        g.beginPath(); g.moveTo(hx - 10, hy - 9); g.quadraticCurveTo(hx - 9, hy - 25, hx, hy - 25); g.quadraticCurveTo(hx + 9, hy - 25, hx + 10, hy - 9); g.closePath(); g.fill(); g.stroke();
-        g.fillStyle = accent; g.fillRect(hx - 10, hy - 13.5, 20, 3.4);
+        g.fillStyle = dark; g.beginPath(); g.ellipse(hx, hy - 10, 19, 4.6, 0, 0, 6.283); g.fill(); g.stroke();
+        g.beginPath(); g.moveTo(hx - 11, hy - 10); g.quadraticCurveTo(hx - 10, hy - 28, hx, hy - 28); g.quadraticCurveTo(hx + 10, hy - 28, hx + 11, hy - 10); g.closePath(); g.fill(); g.stroke();
+        g.fillStyle = accent; g.fillRect(hx - 11, hy - 14.5, 22, 3.6);
       }
     }
     // front arm + hand
     stroke(g, [L.sh, ik(L.sh, L.ha, 16, -1), L.ha], wLimb - 1, ch.head === 'ninja' || ch.head === 'robot' || ch.head === 'det' ? outfit : skin, OUT);
     g.fillStyle = flat || (ch.head === 'robot' ? accent : (ch.head === 'ninja' ? accent : (ch.head === 'det' ? '#f5efe2' : skin)));
-    for (const h of [L.hb, L.ha]) { g.beginPath(); g.arc(h.x, h.y, 5.2, 0, 6.283); g.fill(); g.strokeStyle = OUT; g.lineWidth = 1.8; g.stroke(); }
+    for (const h of [L.hb, L.ha]) { g.beginPath(); g.arc(h.x, h.y, 6.2, 0, 6.283); g.fill(); g.strokeStyle = OUT; g.lineWidth = 1.8; g.stroke(); }
     g.restore();
   };
 })();
